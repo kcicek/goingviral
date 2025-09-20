@@ -1,5 +1,5 @@
 
-# Going Viral (Vanilla JS)
+# Going Viral
 
 
 A mobile-first, pass-and-play social deduction mini-game inspired by Mafia/Werewolf with microbiology-themed roles.
