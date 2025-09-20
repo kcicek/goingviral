@@ -21,7 +21,7 @@ const PHASES = {
 // Lightweight confetti burst overlay for celebratory reveals
 function confettiBurst({ count = 120, duration = 1200, colors = ['#6ee7ff', '#a78bfa', '#fbbf24', '#4ade80', '#ff6b6b'], gravity = 0.12, angle = -Math.PI / 2, spread = Math.PI, scalar = 1 } = {}) {
   const canvas = document.createElement('canvas');
-  Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: '9999' });
+  Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '9999' });
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
@@ -413,7 +413,7 @@ function renderReveal() {
         h('div', {},
           h('div', { class: 'phase' }, 'Identity Reveal'),
           h('div', { class: 'centerpiece', style: 'font-size:2.5rem;' }, role.emoji),
-          h('div', { class: 'name', style: 'font-size:1.3rem;font-weight:700;margin:8px 0;' }, state.names[idx] || `Player #${idx + 1}`),
+          (() => { const c = playerTint(idx, state.playerCount); return h('div', { class: 'name', style: `font-size:1.3rem;font-weight:800;margin:8px 0;color:${c.tint};` }, state.names[idx] || `Player #${idx + 1}`); })(),
           h('div', { class: 'role', style: 'font-size:1.2rem;margin:6px 0;' }, role.name),
           h('div', { class: 'hint', style: 'margin:8px 0;color:var(--muted);' }, role.hint)
         )
@@ -430,7 +430,7 @@ function renderReveal() {
     h('div', { class: 'grid' },
       h('div', {},
         h('div', { class: 'phase' }, 'Identity Reveal'),
-        h('p', { class: 'kicker' }, `${state.names[idx] || `Player #${idx + 1}`}, tap your tile to reveal your role.`)
+  (() => { const nm = state.names[idx] || `Player #${idx + 1}`; const c = playerTint(idx, state.playerCount); return h('p', { class: 'kicker' }, h('span', { style: `color:${c.tint};font-weight:800;` }, nm), ', tap your tile to reveal your role.'); })()
       ),
       PlayerGrid(players, { onTileClick, revealMap: state.revealed })
     ),
@@ -527,31 +527,41 @@ function renderVoting() {
   const isVirusTurn = currentVoter != null && currentVoter === getVirusIndex();
   const isInfectedTurn = currentVoter != null && state.infected[currentVoter] === true;
   const started = currentVoter != null && state.turnStartedFor === currentVoter;
+  const currentName = currentVoter != null ? (state.names[currentVoter] || 'Player') : 'Player';
+  const currentColor = currentVoter != null ? playerTint(currentVoter, state.playerCount || 1) : null;
 
-  // Build disabled indices set: only current voter (no self-vote). Infected remain valid targets.
-  const disabled = new Set();
-  if (currentVoter != null) disabled.add(currentVoter);
+  // Hide current voter's own tile instead of showing a no self-vote warning.
+  const hidden = new Set();
+  if (currentVoter != null) hidden.add(currentVoter);
+
+  const preTurnVisual = (!started && !allDone && currentVoter != null)
+    ? h('div', { class: 'centerpiece', title: 'Hand the device over' }, '📱')
+    : PlayerGrid(players, { onTileClick, enableClicks: !allDone && started && !isInfectedTurn, currentIndex: currentVoter, hiddenIndices: Array.from(hidden) });
+
+  const preTurnKicker = (!started && !allDone && currentVoter != null)
+    ? (() => { const span = h('span', { style: `color:${currentColor?.tint};font-weight:800;` }, currentName); return ['Hand the device to: ', span]; })()
+    : (allDone
+        ? 'All actions in.'
+        : started
+          ? (isInfectedTurn
+              ? (() => { const span = h('span', { style: `color:${currentColor?.tint};font-weight:800;` }, currentName); return [span, ', You are infected! You cannot vote.']; })()
+              : (isVirusTurn ? 'Tap a player to infect.' : 'Tap who you suspect.'))
+          : (() => { const span = h('span', { style: `color:${currentColor?.tint};font-weight:800;` }, currentName); return [span, "'s turn."]; })());
 
   const root = Container(
     Header(),
     h('div', { class: 'grid' },
       h('div', {},
-        h('div', { class: 'phase' }, 'Voting'),
-        h('p', { class: 'kicker' }, allDone
-          ? 'All actions in.'
-          : !started
-            ? `${state.names[currentVoter] || 'Player'}'s turn. Hand them the device and tap Begin Turn when ready.`
-            : isInfectedTurn
-              ? `${state.names[currentVoter] || 'Player'}, You are infected! You cannot vote.`
-              : isVirusTurn
-                ? `Tap a player to infect.`
-                : `Tap who you suspect (no self-vote).`)
+        h('div', { class: 'phase' }, (started && currentVoter != null)
+          ? [h('span', { style: `color:${currentColor?.tint};font-weight:800;` }, currentName), ' is VOTING']
+          : 'Voting'),
+        h('p', { class: 'kicker' }, preTurnKicker)
       ),
-      PlayerGrid(players, { onTileClick, enableClicks: !allDone && started && !isInfectedTurn, currentIndex: currentVoter, disabledIndices: Array.from(disabled) })
+      preTurnVisual
     ),
     Controls(
       !started && !allDone
-        ? Button('Begin Turn', { kind: 'accent', onClick: () => { if (currentVoter != null) { state.turnStartedFor = currentVoter; render(); } } })
+        ? (() => { const label = h('span', {}, h('span', { style: `color:${currentColor?.tint};font-weight:800;` }, currentName), ', tap to Begin Your Turn'); return Button(label, { kind: 'accent', onClick: () => { if (currentVoter != null) { state.turnStartedFor = currentVoter; render(); } } }); })()
         : Button(isInfectedTurn
           ? 'Continue'
           : allDone ? 'Resolve Round' : `Actions: ${votedCount}/${state.playerCount}`, { kind: isInfectedTurn ? 'accent' : (allDone ? 'success' : 'secondary'), class: isInfectedTurn ? 'btn-pulse' : '', onClick: () => {
@@ -589,7 +599,7 @@ function renderVoting() {
               }
             } })
     ),
-    Footer(isInfectedTurn ? 'You are infected and cannot vote this round.' : 'Tap a player tile to cast your vote'),
+  Footer((!started && !allDone) ? '' : (isInfectedTurn ? 'You are infected and cannot vote this round.' : 'Tap a player tile to vote.')),
     devBox({
       round: state.round,
       phase: 'Voting',
@@ -638,7 +648,7 @@ function renderSummary() {
           const label = h('div', {},
             h('span', { class: 'name-dot', style: `background:${color.tint}; box-shadow: 0 0 6px ${color.tint};` }),
             ' ',
-            p.name || `Player #${p.i + 1}`
+            (() => { const nm = p.name || `Player #${p.i + 1}`; return h('span', { style: `color:${color.tint};font-weight:800;` }, nm); })()
           );
           return h('div', { class: 'vote-row' },
             label,

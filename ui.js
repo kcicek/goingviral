@@ -25,8 +25,7 @@ export function renderApp(container, vnode) {
 // Components
 export function Header() {
   return h('div', { class: 'header' },
-    h('div', { class: 'badge' }, h('span', { class: 'dot' }), 'Going Viral'),
-    h('h1', { class: 'title' }, 'Going Viral')
+    h('div', { class: 'badge' }, h('span', { class: 'dot' }), 'Going Viral')
   );
 }
 
@@ -35,8 +34,9 @@ export function Container(...children) {
 }
 
 export function PlayerGrid(players, opts = {}) {
-  const { onTileClick, revealMap, votesMap, enableClicks = true, disabledIndices = [], currentIndex = null } = opts;
+  const { onTileClick, revealMap, votesMap, enableClicks = true, disabledIndices = [], currentIndex = null, hiddenIndices = [] } = opts;
   const disabledSet = new Set(disabledIndices || []);
+  const hiddenSet = new Set(hiddenIndices || []);
   const total = players.length || 1;
   return h('div', { class: 'grid players' },
     players.map((p, i) => {
@@ -52,6 +52,7 @@ export function PlayerGrid(players, opts = {}) {
       });
       if (currentIndex === i) el.classList.add('current');
       if (disabledSet.has(i)) el.classList.add('disabled');
+      if (hiddenSet.has(i)) el.style.display = 'none';
       return el;
     })
   );
@@ -80,7 +81,7 @@ function PlayerTile({ index, player, revealed, votes, onClick, color, hideIcon }
       h('div', { class: 'tile-front' },
         (!hideIcon && color) ? h('span', { class: 'picon', style: `background:${color.tint}; box-shadow: 0 0 8px ${color.tint};` }) : null,
         h('div', { class: 'label' }, ''),
-        h('div', { class: 'name', style: 'font-size:15px;word-break:break-word;white-space:normal;line-height:1.1;max-width:100%;overflow-wrap:break-word;padding:2px 0;' }, displayName)
+        h('div', { class: 'name', style: `font-size:15px;word-break:break-word;white-space:normal;line-height:1.1;max-width:100%;overflow-wrap:break-word;padding:2px 0;${color ? `color:${color.tint};font-weight:800;` : ''}` }, displayName)
       ),
       h('div', { class: 'tile-back' },
         revealed?.emoji ? h('div', { class: 'role' }, `${revealed.emoji} ${revealed.name}`) : null,
