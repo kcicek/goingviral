@@ -9,6 +9,11 @@ A mobile-first, pass-and-play social deduction mini-game inspired by Mafia/Werew
 - No backend, no build step
 
 ## How to run
+
+### Online (Recommended)
+Play directly in your browser at: **https://kcicek.github.io/goingviral**
+
+### Local Development
 Open `index.html` in your browser. On Windows:
 
 - Double-click the file, or
